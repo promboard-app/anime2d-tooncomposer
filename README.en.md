@@ -30,7 +30,7 @@ Windows and Linux only (no macOS). "Two frames → video" and colorization need 
 | 움직일 곳 (free-motion mask) | One black-and-white picture. White areas move freely instead of following the sketches. Used for every sketch keyframe | No |
 | 프롬프트 (prompt) | The scene and motion in English, e.g. `A girl jumps into the air with both arms raised. Anime. High quality.` | Yes |
 
-- With several pictures, they go to the frame numbers in the "position" settings in the order you connected them. Empty positions spread them evenly: colors from frame 0, sketches from the last frame back (the same values as the official app).
+- With several pictures, they go to the frame numbers in the "position" settings in the order you connected them. Empty positions spread them evenly: colors from frame 0, sketches from the last frame back (the same values as the official app). If a sketch would land on a color keyframe's frame, it moves to the nearest free frame (e.g. 2 + 2 over 61 frames: colors 0 · 30, sketches 31 · 60).
 - Pictures are scaled so the short side fits 832×480 (1088×608 at 608p), then center-cropped. Landscape pictures close to 16:9 lose the least.
 - If something is missing, the node says what and which example card to drop in, before loading the model.
 
@@ -75,7 +75,7 @@ Downloaded once, when the plugin is first prepared. PromBoard shows the size and
 ## Why "unverified" — known problems
 
 - The official README asks for about 57 GB of GPU memory for 61 frames at 480p. Like the official app, this node puts the whole model on the GPU. The weights alone are about 47 GB, so on a smaller GPU the node stops before loading and says why.
-- Loading is reported to use more than 76 GB of RAM ([issue #6](https://github.com/TencentARC/ToonComposer/issues/6)).
+- Loading is reported to use more than 76 GB of RAM (a 96 GB Windows PC, [issue #6](https://github.com/TencentARC/ToonComposer/issues/6)). So on a PC with less than 76 GB of RAM the node stops before loading and says why.
 - An open report says the published code and weights do not reproduce official sample 3 ([issue #19](https://github.com/TencentARC/ToonComposer/issues/19)).
 - PromBoard waits about 15 minutes for one node run (plus 3 minutes the first time, for loading). Whether a server-class GPU finishes within that was not measured.
 - PromBoard installs prebuilt wheels only, so flash-attn is not installed. The node uses the PyTorch attention path that is already in the official code, which may be slower than the official numbers.
@@ -106,6 +106,6 @@ The plugin texts in the app are Korean only — the plugin manifest takes a sing
 
 - `nodes/tooncomposer/` is the official code ([TencentARC/ToonComposer](https://github.com/TencentARC/ToonComposer) `53dc3df`). Changes are marked `PromBoard:` and listed in [NOTICE.md](NOTICE.md).
 - The official `app.py` (Gradio UI, downloads at start) is not included; its inference path is ported to `nodes/main.py`, reading the files PromBoard downloaded (the network is blocked while nodes run).
-- Differences from the official app: the node takes one mask and uses it for every sketch keyframe, fitted the same way as the pictures (short side + center crop); transparent areas become white.
+- Differences from the official app: the node takes one mask and uses it for every sketch keyframe, fitted the same way as the pictures (short side + center crop). Transparent areas of the keyframe pictures become white; transparent areas of the mask count as not moving.
 - Of `diffsynth` 1.1.7's declared dependencies, the unused `controlnet-aux` and `cupy-cuda12x` are left out of the lock files ([`nodes/overrides.txt`](nodes/overrides.txt)). With that, every module imports in the same environment PromBoard builds (Python 3.12, torch 2.8.0 cu126).
 - Tests: `python -m pytest tests` (input checks, positions, resizing; no models).

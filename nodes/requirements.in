@@ -17,3 +17,4 @@ av==18.1.0
 numpy
 pillow
 tqdm
+psutil

@@ -7,7 +7,8 @@
   process_sketch_masks · tooncomposer_inference)를 이 파일에 옮겼다 — 모델은 hf_hub 대신 ctx.model_path(받아 둔 파일)에서 읽는다.
   공식 앱 값: 480p 832×480 · 608p 1088×608, 15단계, CFG 7.5, 위치 반영 정도 1.0, 시드 42, 결과 mp4 20fps.
   상류와 다른 것: 마스크는 노드에 한 장만 받아 모든 선화 키프레임에 쓰고(흰 곳 = 움직일 곳), 그림과 같은 방법(짧은 변 맞춤 + 가운데
-  자르기)으로 크기를 맞춘다(상류는 마스크만 늘려 맞춰 자른 선화와 어긋날 수 있다). 투명한 곳은 흰 바탕으로 채운다.
+  자르기)으로 크기를 맞춘다(상류는 마스크만 늘려 맞춰 자른 선화와 어긋날 수 있다). 키프레임 그림의 투명한 곳은 흰 바탕으로 채우고,
+  마스크의 투명한 곳은 움직이지 않는 곳(검정)으로 본다. 위치를 비우면 컬러와 선화가 같은 프레임에 겹치지 않게 나눈다(even_positions).
 
 노드 코드 약속(NODES · ctx · 입출력 모양)은 PromBoard docs/Scrum4/02_스키마-v0.md §6.
 """
@@ -30,6 +31,8 @@ UMT5_TOKENIZER = ("special_tokens_map.json", "spiece.model", "tokenizer.json", "
 # VAE 0.5GB → 0.25GB, ToonComposer 0.18GB → 0.09GB. 공식 앱은 모두 그래픽카드에 올린다(model.to(device)). 이보다 작으면 무게도 못 올린다.
 WEIGHTS_BYTES = 46_880_000_000
 OFFICIAL_VRAM_GB = 57  # 공식 README: 480p 61프레임에 약 57GB
+# 공식 이슈 #6: RAM 96GB 윈도우 PC 가 모델을 불러오는 동안 76GB 쯤까지 쓰다 멈췄다. 이보다 RAM 이 작으면 불러오기 전에 멈춘다(GiB).
+MIN_RAM_GB = 76
 
 PORT = {"color": "컬러 키프레임", "line": "선화 키프레임", "mask": "움직일 곳", "prompt": "프롬프트"}
 CARD = {"color": "예제 — 컬러 키프레임", "line": "예제 — 선화 키프레임"}
@@ -70,17 +73,26 @@ _CACHE = {"model": None, "ckpt": None}
 # ── 입력 검사(모델을 불러오기 전, torch 없이) ─────────────────────────────────────
 
 
-def even_positions(count, length, kind):
-    """비운 위치 칸 — app.py 화면이 장 수를 바꿀 때 넣는 값과 같다. 컬러는 0 부터, 선화는 끝 쪽부터 채운다."""
+def even_positions(count, length, kind, avoid=()):
+    """비운 위치 칸 — app.py 화면이 장 수를 바꿀 때 넣는 값(컬러는 0 부터, 선화는 끝 쪽부터 고르게)을 쓰되, 다른 쪽 키프레임이 차지한
+    프레임(avoid)은 피해 가장 가까운 빈 프레임(뒤쪽 먼저)으로 옮긴다. 공식 app.py 도 컬러와 선화를 같은 프레임에 두면 거절하는데
+    (validate_inputs 'Duplicate frame indices'), 그 화면의 기본값은 2장씩부터 겹친다(61프레임 2+2 → 컬러 0,30 · 선화 30,60)."""
     step = (length - 1) // max(count, 1)
-    return [step * (i if kind == "color" else i + 1) for i in range(count)]
+    taken = set(avoid)
+    out = []
+    for i in range(count):
+        want = step * (i if kind == "color" else i + 1)
+        pick = next(f for d in range(length) for f in (want + d, want - d) if 0 <= f < length and f not in taken)
+        taken.add(pick)
+        out.append(pick)
+    return out
 
 
-def parse_positions(text, count, length, kind):
-    """위치 글('0' · '30,60')을 프레임 번호 목록으로. 비우면 고르게 나눈다. 틀리면 한국어 ValueError."""
+def parse_positions(text, count, length, kind, avoid=()):
+    """위치 글('0' · '30,60')을 프레임 번호 목록으로. 비우면 avoid 를 피해 고르게 나눈다. 틀리면 한국어 ValueError."""
     raw = (text or "").strip()
     if not raw:
-        return even_positions(count, length, kind)
+        return even_positions(count, length, kind, avoid)
     name = PORT[kind]
     parts = [p for p in re.split(r"[,\s，、]+", raw) if p]
     try:
@@ -119,8 +131,13 @@ def check_inputs(inputs, settings):
     if not (inputs.get("prompt") or "").strip():
         raise ValueError(f"'{NODE}'은 '{PORT['prompt']}'가 있어야 합니다. 장면과 움직임을 영어로 적어 이어 주세요(예: A girl waves her hand and smiles. Anime. High quality.).")
     length = int(settings["length"])
-    color_at = parse_positions(settings.get("color-at"), len(colors), length, "color")
-    line_at = parse_positions(settings.get("line-at"), len(lines), length, "line")
+    # 비운 쪽이 적은 쪽을 피한다. 둘 다 비면 컬러를 먼저 두고 선화가 컬러를 피한다. 둘 다 적었는데 겹치면 아래에서 거절한다.
+    if (settings.get("line-at") or "").strip():
+        line_at = parse_positions(settings.get("line-at"), len(lines), length, "line")
+        color_at = parse_positions(settings.get("color-at"), len(colors), length, "color", avoid=line_at)
+    else:
+        color_at = parse_positions(settings.get("color-at"), len(colors), length, "color")
+        line_at = parse_positions(settings.get("line-at"), len(lines), length, "line", avoid=color_at)
     both = sorted(set(color_at) & set(line_at))
     if both:
         raise ValueError(
@@ -328,6 +345,14 @@ def compose(ctx, inputs, settings):
             f"이 PC 그래픽카드 메모리는 {total / 2**30:.0f}GB 라 이 모델을 올릴 수 없습니다. 모델 무게만 약 {WEIGHTS_BYTES / 1e9:.0f}GB, "
             f"공식 안내로 480p 61프레임에 약 {OFFICIAL_VRAM_GB}GB 가 필요합니다. 일반 PC 에서는 '2D 애니메이션 팩 — 프레임 사이 채우기'를 쓰세요."
         )
+    import psutil
+
+    ram = psutil.virtual_memory().total
+    if ram < MIN_RAM_GB * 2**30:
+        raise ValueError(
+            f"이 PC RAM 은 {ram / 2**30:.0f}GB 라 이 모델을 불러올 수 없습니다. 모델을 불러오는 동안 RAM 을 {MIN_RAM_GB}GB 넘게 쓴다는 보고가 있어 "
+            f"(공식 저장소 이슈 #6) RAM 이 {MIN_RAM_GB}GB 보다 작으면 불러오기 전에 멈춥니다."
+        )
 
     resolution = settings["resolution"]
     target_h, target_w = SIZES[resolution]
@@ -337,6 +362,7 @@ def compose(ctx, inputs, settings):
     prompt = inputs["prompt"].strip()
 
     failure = None
+    model = cond_video = cond_mask = sketch_video = sketch_mask = local_mask = generated = None
     try:
         model = _load(ctx, resolution)
         model.update_height_width(target_h, target_w)
@@ -370,7 +396,7 @@ def compose(ctx, inputs, settings):
                     progress_bar_cmd=lambda it: _Steps(ctx, it),
                 )
             frames = model.pipe.tensor2video(generated[0].cpu())
-        del generated, cond_video, sketch_video, local_mask
+        generated = cond_video = cond_mask = sketch_video = sketch_mask = local_mask = None
     except torch.OutOfMemoryError:
         failure = "vram"
     except MemoryError:
@@ -381,14 +407,17 @@ def compose(ctx, inputs, settings):
         failure = "ram"
     if failure:
         # except 블록 밖에서 정리하고 새 오류를 낸다 — 블록 안에서 내면 원래 오류(와 그 프레임이 쥔 텐서)가 새 오류의 __context__ 로 남아
-        # 사이드카가 다음 실행까지 메모리를 놓지 못한다.
+        # 사이드카가 다음 실행까지 메모리를 놓지 못한다. 이 함수가 쥔 모델 · 조건 텐서도 먼저 놓아야 _free() 가 그래픽카드에서 내린다.
+        model = cond_video = cond_mask = sketch_video = sketch_mask = local_mask = generated = None
         _free()
         if failure == "vram":
             raise RuntimeError(
                 f"그래픽카드 메모리가 모자랍니다(공식 안내 480p 61프레임에 약 {OFFICIAL_VRAM_GB}GB 필요, 이 PC {total / 2**30:.0f}GB). "
                 "길이를 줄이거나 480p 로 다시 해 보세요."
             )
-        raise RuntimeError("컴퓨터 메모리(RAM)가 모자랍니다. 이 모델은 불러오는 동안 RAM 을 76GB 넘게 씁니다. 다른 프로그램을 닫고 다시 해 보세요.")
+        raise RuntimeError(
+            f"컴퓨터 메모리(RAM)가 모자랍니다. 이 모델은 불러오는 동안 RAM 을 {MIN_RAM_GB}GB 넘게 쓴다는 보고가 있습니다. 다른 프로그램을 닫고 다시 해 보세요."
+        )
 
     ctx.check_cancel()
     ctx.progress(0.95, "encode")

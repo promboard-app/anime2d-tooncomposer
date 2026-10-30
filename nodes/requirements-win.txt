@@ -1,5 +1,5 @@
 # promboard.anime2d-tooncomposer lock (win) - generated, do not edit by hand
-# uv 0.12.17: uv pip compile nodes/requirements.in --override nodes/overrides.txt --generate-hashes --python-version 3.12 --python-platform x86_64-pc-windows-msvc --index-url https://pypi.org/simple --exclude-newer 2026-10-30T00:00:00Z
+# uv 0.12.17: uv pip compile nodes/requirements.in --override nodes/overrides.txt --generate-hashes --only-binary :all: --python-version 3.12 --python-platform x86_64-pc-windows-msvc --index-url https://pypi.org/simple --exclude-newer 2026-10-30T00:00:00Z
 # "torch": "host" - PromBoard drops the torch family lines (torch, torchaudio, torchvision, triton, nvidia-*) and installs the app's pinned torch first
 # install (PromBoard prepare): uv pip install --python <venv python> --no-deps --require-hashes --only-binary :all: -r <copy without torch lines>
 av==18.1.0 \
@@ -1165,7 +1165,9 @@ psutil==7.2.2 \
     --hash=sha256:ed0cace939114f62738d808fdcecd4c869222507e266e574799e9c0faa17d486 \
     --hash=sha256:eed63d3b4d62449571547b60578c5b2c4bcccc5387148db46e0c2313dad0ee00 \
     --hash=sha256:fd04ef36b4a6d599bbdb225dd1d3f51e00105f6d48a28f006da7f9822f2606d8
-    # via imageio
+    # via
+    #   -r nodes/requirements.in
+    #   imageio
 pycparser==3.12 \
     --hash=sha256:a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e \
     --hash=sha256:f03387877eab82ce01bbdfd0ba7252ee55a90b1c708d5129e2ce915475cf1db6

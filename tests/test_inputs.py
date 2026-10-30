@@ -56,11 +56,36 @@ def test_check_inputs_defaults():
     assert check_inputs(inputs(2, 3), SETTINGS) == ([0, 30], [20, 40, 60], 61)
 
 
-def test_check_inputs_overlap_is_rejected():
-    # 컬러 2장(0,16) · 선화 2장(16,32) 처럼 고르게 나눈 값이 겹치면 알린다
+@pytest.mark.parametrize("length", [17, 33, 49, 61])
+@pytest.mark.parametrize("colors", [1, 2, 3, 4])
+@pytest.mark.parametrize("lines", [1, 2, 3, 4])
+def test_empty_positions_never_overlap(colors, lines, length):
+    # 두 칸이 다 비면 선화가 컬러를 피해 고르게 놓인다(공식 화면 기본값은 2장씩부터 겹친다)
+    color_at, line_at, got = check_inputs(inputs(colors, lines), {**SETTINGS, "length": str(length)})
+    assert got == length
+    assert len(color_at) == colors and len(line_at) == lines
+    assert len(set(color_at) | set(line_at)) == colors + lines
+    assert all(0 <= f < length for f in color_at + line_at)
+    assert color_at == even_positions(colors, length, "color")  # 컬러는 공식 값 그대로
+
+
+def test_empty_positions_move_only_the_clash():
+    assert check_inputs(inputs(2, 2), SETTINGS) == ([0, 30], [31, 60], 61)  # 공식 값 30,60 중 30 만 옮김
+    assert check_inputs(inputs(4, 4), {**SETTINGS, "length": "17"}) == ([0, 4, 8, 12], [5, 9, 13, 16], 17)
+    assert check_inputs(inputs(2, 3), SETTINGS) == ([0, 30], [20, 40, 60], 61)  # 안 겹치면 공식 값 그대로
+
+
+def test_empty_side_avoids_the_written_side():
+    assert check_inputs(inputs(2, 2), {**SETTINGS, "color-at": "0,30"})[1] == [31, 60]
+    assert check_inputs(inputs(1, 1), {**SETTINGS, "line-at": "0"})[0] == [1]
+    assert check_inputs(inputs(1, 2), {**SETTINGS, "line-at": "30,60"})[0] == [0]
+
+
+def test_written_positions_that_overlap_are_rejected():
+    # 공식 app.py 도 같은 프레임에 컬러와 선화를 두면 거절한다(validate_inputs)
     with pytest.raises(ValueError) as err:
-        check_inputs(inputs(2, 2), {**SETTINGS, "length": "33"})
-    assert "같은 프레임(16)" in str(err.value)
+        check_inputs(inputs(2, 2), {**SETTINGS, "color-at": "0,30", "line-at": "30,60"})
+    assert "같은 프레임(30)" in str(err.value)
 
 
 def test_check_inputs_names_missing_port_and_card():
