@@ -1,0 +1,265 @@
+{
+  "schema": 1,
+  "workflows": [
+    {
+      "id": "keyframes-to-video",
+      "name": "컬러 키프레임 + 선화 키프레임 → 키프레임 영상",
+      "description": "에셋 탭의 '예제 — 컬러 키프레임' 카드를 맨 위 소스 노드에, '예제 — 선화 키프레임' 카드를 그 아래 소스 노드에 끌어 놓고 키프레임 영상 노드 ▷ 를 누른다. 컬러는 첫 프레임, 선화는 마지막 프레임에 들어가 그 사이를 AI 가 그리고 칠한다. 움직임은 프롬프트 노드 글(영어)로 바꾼다. 서버급 그래픽카드(57GB 급)에서만 돈다(검증 안 됨).",
+      "nodes": [
+        {
+          "id": "color",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "selectedTermIds": [],
+          "isStale": false,
+          "type": "sourceImage",
+          "images": [],
+          "nodeType": "sourceImage",
+          "pendingUploads": [],
+          "inputWires": [],
+          "outputWires": []
+        },
+        {
+          "id": "line",
+          "position": {
+            "x": 0,
+            "y": 340
+          },
+          "selectedTermIds": [],
+          "isStale": false,
+          "type": "sourceImage",
+          "images": [],
+          "nodeType": "sourceImage",
+          "pendingUploads": [],
+          "inputWires": [],
+          "outputWires": []
+        },
+        {
+          "id": "prompt",
+          "position": {
+            "x": 0,
+            "y": 680
+          },
+          "selectedTermIds": [],
+          "isStale": false,
+          "type": "prompt",
+          "promptType": "video",
+          "promptText": "A girl with a long dark braid in a blue pinafore dress stands on a grassy hill under a blue sky with white clouds, then happily jumps into the air with both arms raised. Anime. High quality.",
+          "promptHistory": [],
+          "nodeType": "prompt",
+          "inputWires": [],
+          "outputWires": []
+        },
+        {
+          "id": "compose",
+          "position": {
+            "x": 380,
+            "y": 160
+          },
+          "selectedTermIds": [],
+          "isStale": false,
+          "type": "promboard.anime2d-tooncomposer/compose",
+          "plugin": {
+            "id": "promboard.anime2d-tooncomposer",
+            "nodeId": "compose"
+          },
+          "snapshot": {
+            "plugin": "promboard.anime2d-tooncomposer",
+            "id": "compose",
+            "label": "2D 애니메이션 · 키프레임 영상",
+            "layout": "sourceStrip",
+            "sources": [
+              "color",
+              "line",
+              "mask"
+            ],
+            "views": [
+              "frameStrip"
+            ],
+            "inputs": [
+              {
+                "id": "color",
+                "type": "image",
+                "label": "컬러 키프레임",
+                "required": false,
+                "multiple": true
+              },
+              {
+                "id": "line",
+                "type": "image",
+                "label": "선화 키프레임",
+                "required": false,
+                "multiple": true
+              },
+              {
+                "id": "mask",
+                "type": "image",
+                "label": "움직일 곳",
+                "required": false
+              },
+              {
+                "id": "prompt",
+                "type": "text",
+                "label": "프롬프트",
+                "required": true
+              }
+            ],
+            "outputs": [
+              {
+                "id": "video",
+                "type": "video",
+                "label": "영상"
+              },
+              {
+                "id": "frames",
+                "type": "image",
+                "label": "프레임 (여러 장)",
+                "multiple": true
+              }
+            ],
+            "settings": [
+              {
+                "id": "length",
+                "label": "길이",
+                "type": "select",
+                "help": "만들 프레임 수(20fps). 길수록 그래픽카드 메모리 · 시간이 더 든다. 공식 안내 57GB 는 480p 61프레임 기준.",
+                "options": [
+                  {
+                    "value": "17",
+                    "label": "17프레임 (약 1초)"
+                  },
+                  {
+                    "value": "33",
+                    "label": "33프레임 (약 1.7초)"
+                  },
+                  {
+                    "value": "49",
+                    "label": "49프레임 (약 2.5초)"
+                  },
+                  {
+                    "value": "61",
+                    "label": "61프레임 (약 3초)"
+                  }
+                ],
+                "default": "61"
+              },
+              {
+                "id": "resolution",
+                "label": "해상도",
+                "type": "select",
+                "help": "그림은 짧은 변을 맞춰 늘리고 가운데를 자른다. 가로 16:9 에 가까운 그림이 덜 잘린다. 608p 는 메모리가 더 든다.",
+                "options": [
+                  {
+                    "value": "480p",
+                    "label": "480p (832×480)"
+                  },
+                  {
+                    "value": "608p",
+                    "label": "608p (1088×608)"
+                  }
+                ],
+                "default": "480p"
+              },
+              {
+                "id": "color-at",
+                "label": "컬러 키프레임 위치",
+                "type": "text",
+                "default": "",
+                "maxLength": 40,
+                "help": "이은 순서대로 둘 프레임 번호를 쉼표로(0 이 첫 프레임, 예: 0 또는 0,30). 비우면 0 부터 고르게 나눈다. 보통 첫 컬러는 0."
+              },
+              {
+                "id": "line-at",
+                "label": "선화 키프레임 위치",
+                "type": "text",
+                "default": "",
+                "maxLength": 40,
+                "help": "이은 순서대로 프레임 번호를 쉼표로(예: 30,60). 비우면 끝 쪽부터 고르게 나눈다(1장이면 마지막 프레임). 컬러와 같은 번호는 안 된다."
+              },
+              {
+                "id": "guidance",
+                "label": "프롬프트 따르기",
+                "type": "number",
+                "default": 7.5,
+                "min": 1,
+                "max": 15,
+                "step": 0.5,
+                "help": "클수록 프롬프트를 더 따른다(CFG, 공식 기본 7.5)."
+              },
+              {
+                "id": "sketch-strength",
+                "label": "선화 따르기",
+                "type": "number",
+                "default": 1.0,
+                "min": 0,
+                "max": 1.2,
+                "step": 0.05,
+                "help": "선화 키프레임 조건을 얼마나 세게 넣을지(공식 'Pos-aware Residual Scale', 기본 1.0)."
+              },
+              {
+                "id": "steps",
+                "label": "단계 수",
+                "type": "integer",
+                "default": 15,
+                "min": 1,
+                "max": 50,
+                "help": "많을수록 느리다. 공식 앱은 15."
+              },
+              {
+                "id": "seed",
+                "label": "시드",
+                "type": "integer",
+                "default": -1,
+                "min": -1,
+                "max": 2147483647,
+                "help": "-1 이면 매번 다른 결과. 공식 앱은 42."
+              }
+            ]
+          },
+          "pluginSettings": {
+            "length": "61",
+            "resolution": "480p",
+            "color-at": "",
+            "line-at": "",
+            "guidance": 7.5,
+            "sketch-strength": 1.0,
+            "steps": 15,
+            "seed": -1
+          },
+          "nodeType": "promboard.anime2d-tooncomposer/compose",
+          "inputWires": [],
+          "outputWires": [],
+          "outputPick": {}
+        }
+      ],
+      "wires": [
+        {
+          "id": "color-to-compose",
+          "fromNodeId": "color",
+          "fromPortId": "source-image-out",
+          "toNodeId": "compose",
+          "toPortId": "in-color",
+          "dataType": "image"
+        },
+        {
+          "id": "line-to-compose",
+          "fromNodeId": "line",
+          "fromPortId": "source-image-out",
+          "toNodeId": "compose",
+          "toPortId": "in-line",
+          "dataType": "image"
+        },
+        {
+          "id": "prompt-to-compose",
+          "fromNodeId": "prompt",
+          "fromPortId": "prompt-text-out",
+          "toNodeId": "compose",
+          "toPortId": "in-prompt",
+          "dataType": "text"
+        }
+      ]
+    }
+  ]
+}

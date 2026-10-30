@@ -1,0 +1,322 @@
+{
+  "schema": 1,
+  "id": "promboard.anime2d-tooncomposer",
+  "version": "1.0.0",
+  "name": "2D 애니메이션 팩 — 키프레임으로 채색 영상 (ToonComposer)",
+  "description": "일반 PC 에서는 돌지 않습니다. 그래픽카드 메모리 57GB 급, 받을 용량 약 82GB, RAM 76GB 넘게 씀. 공개된 모델 파일로는 예제가 재현되지 않는다는 보고가 있습니다(이슈 #19). 2D 애니메이션 팩은 세 장으로 나뉩니다 — '2D 애니메이션 팩 — 프레임 사이 채우기' · '2D 애니메이션 팩 — 선화 채색' · 이 카드. 컬러 키프레임 1~4장과 선화 키프레임 1~4장, 영어 프롬프트로 중간 프레임과 채색을 한 번에 만든 영상(17~61프레임, 480p · 608p)을 낸다. 선화의 일부를 마스크로 풀어 그곳만 자유롭게 움직이게 할 수도 있다. 모델은 텐센트 ARC 의 ToonComposer(MIT)와 그 바탕인 Wan2.1-I2V-14B-480P(Apache-2.0)를 허깅페이스에서 받는다. 아직 실제로 돌려 보지 않았다(검증 안 됨). NVIDIA 그래픽카드 전용, 윈도우 · 리눅스.",
+  "author": "PromBoard",
+  "license": "MIT AND Apache-2.0",
+  "app": ">=1.0.3",
+  "categories": [
+    "videoGenerate"
+  ],
+  "unverified": true,
+  "repository": "https://github.com/promboard-app/anime2d-tooncomposer",
+  "icon": "icon.png",
+  "contents": [
+    "nodes",
+    "cards",
+    "workflows"
+  ],
+  "nodes": [
+    {
+      "id": "compose",
+      "label": "2D 애니메이션 · 키프레임 영상",
+      "description": "일반 PC 에서는 돌지 않습니다. 그래픽카드 메모리 57GB 급, 받을 용량 약 82GB, RAM 76GB 넘게 씀. 공개된 모델 파일로는 예제가 재현되지 않는다는 보고가 있습니다(이슈 #19). 2D 애니메이션 팩은 세 장으로 나뉩니다(프레임 사이 채우기 · 선화 채색 · 키프레임 영상). 컬러 · 선화 키프레임(각 1~4장, 이은 순서대로 위치 설정의 프레임에 둔다)과 영어 프롬프트 → 영상(20fps, 소리 없음)과 그 프레임.",
+      "layout": "sourceStrip",
+      "sources": [
+        "color",
+        "line",
+        "mask"
+      ],
+      "views": [
+        "frameStrip"
+      ],
+      "inputs": [
+        {
+          "id": "color",
+          "type": "image",
+          "label": "컬러 키프레임",
+          "required": false,
+          "multiple": true
+        },
+        {
+          "id": "line",
+          "type": "image",
+          "label": "선화 키프레임",
+          "required": false,
+          "multiple": true
+        },
+        {
+          "id": "mask",
+          "type": "image",
+          "label": "움직일 곳",
+          "required": false
+        },
+        {
+          "id": "prompt",
+          "type": "text",
+          "label": "프롬프트",
+          "required": true
+        }
+      ],
+      "outputs": [
+        {
+          "id": "video",
+          "type": "video",
+          "label": "영상"
+        },
+        {
+          "id": "frames",
+          "type": "image",
+          "label": "프레임 (여러 장)",
+          "multiple": true
+        }
+      ],
+      "settings": [
+        {
+          "id": "length",
+          "label": "길이",
+          "type": "select",
+          "help": "만들 프레임 수(20fps). 길수록 그래픽카드 메모리 · 시간이 더 든다. 공식 안내 57GB 는 480p 61프레임 기준.",
+          "options": [
+            {
+              "value": "17",
+              "label": "17프레임 (약 1초)"
+            },
+            {
+              "value": "33",
+              "label": "33프레임 (약 1.7초)"
+            },
+            {
+              "value": "49",
+              "label": "49프레임 (약 2.5초)"
+            },
+            {
+              "value": "61",
+              "label": "61프레임 (약 3초)"
+            }
+          ],
+          "default": "61"
+        },
+        {
+          "id": "resolution",
+          "label": "해상도",
+          "type": "select",
+          "help": "그림은 짧은 변을 맞춰 늘리고 가운데를 자른다. 가로 16:9 에 가까운 그림이 덜 잘린다. 608p 는 메모리가 더 든다.",
+          "options": [
+            {
+              "value": "480p",
+              "label": "480p (832×480)"
+            },
+            {
+              "value": "608p",
+              "label": "608p (1088×608)"
+            }
+          ],
+          "default": "480p"
+        },
+        {
+          "id": "color-at",
+          "label": "컬러 키프레임 위치",
+          "type": "text",
+          "default": "",
+          "maxLength": 40,
+          "help": "이은 순서대로 둘 프레임 번호를 쉼표로(0 이 첫 프레임, 예: 0 또는 0,30). 비우면 0 부터 고르게 나눈다. 보통 첫 컬러는 0."
+        },
+        {
+          "id": "line-at",
+          "label": "선화 키프레임 위치",
+          "type": "text",
+          "default": "",
+          "maxLength": 40,
+          "help": "이은 순서대로 프레임 번호를 쉼표로(예: 30,60). 비우면 끝 쪽부터 고르게 나눈다(1장이면 마지막 프레임). 컬러와 같은 번호는 안 된다."
+        },
+        {
+          "id": "guidance",
+          "label": "프롬프트 따르기",
+          "type": "number",
+          "default": 7.5,
+          "min": 1,
+          "max": 15,
+          "step": 0.5,
+          "help": "클수록 프롬프트를 더 따른다(CFG, 공식 기본 7.5)."
+        },
+        {
+          "id": "sketch-strength",
+          "label": "선화 따르기",
+          "type": "number",
+          "default": 1.0,
+          "min": 0,
+          "max": 1.2,
+          "step": 0.05,
+          "help": "선화 키프레임 조건을 얼마나 세게 넣을지(공식 'Pos-aware Residual Scale', 기본 1.0)."
+        },
+        {
+          "id": "steps",
+          "label": "단계 수",
+          "type": "integer",
+          "default": 15,
+          "min": 1,
+          "max": 50,
+          "help": "많을수록 느리다. 공식 앱은 15."
+        },
+        {
+          "id": "seed",
+          "label": "시드",
+          "type": "integer",
+          "default": -1,
+          "min": -1,
+          "max": 2147483647,
+          "help": "-1 이면 매번 다른 결과. 공식 앱은 42."
+        }
+      ]
+    }
+  ],
+  "python": {
+    "version": "3.12",
+    "torch": "host",
+    "lock": {
+      "win": "nodes/requirements-win.txt",
+      "linux": "nodes/requirements-linux.txt"
+    },
+    "entry": "nodes.main"
+  },
+  "gpu": {
+    "vramMinMb": 57344,
+    "cpuAllowed": false
+  },
+  "permissions": {},
+  "requires": {
+    "models": [
+      {
+        "source": "huggingface",
+        "repo": "TencentARC/ToonComposer",
+        "revision": "a166c2c0f0755af6b1876586739e818e92e5c44f",
+        "license": "MIT",
+        "files": [
+          {
+            "path": "480p/config.json",
+            "bytes": 1195,
+            "sha256": "1985679e97b4e68d4de32f3844ec1194755ba1b285d92beecd59fc5d371f801b"
+          },
+          {
+            "path": "480p/tooncomposer.ckpt",
+            "bytes": 178131273,
+            "sha256": "92cfd7e61cd263632151e64ddaf3dd4d6da85334fb37b0f3bf637008d213d8ae"
+          }
+        ],
+        "when": {
+          "node": "compose",
+          "setting": "resolution",
+          "values": [
+            "480p"
+          ]
+        }
+      },
+      {
+        "source": "huggingface",
+        "repo": "TencentARC/ToonComposer",
+        "revision": "a166c2c0f0755af6b1876586739e818e92e5c44f",
+        "license": "MIT",
+        "files": [
+          {
+            "path": "608p/config.json",
+            "bytes": 1196,
+            "sha256": "eb5ba0649f0a558a27c990cd0d11516564e1c1e27d0cc93bdb8bc0b9c16ec69b"
+          },
+          {
+            "path": "608p/tooncomposer.ckpt",
+            "bytes": 178131273,
+            "sha256": "9913924c77f8e50d88f6dd03c27d70b0d520f6a8e99073c9ba25233e411b3129"
+          }
+        ],
+        "when": {
+          "node": "compose",
+          "setting": "resolution",
+          "values": [
+            "608p"
+          ]
+        }
+      },
+      {
+        "source": "huggingface",
+        "repo": "Wan-AI/Wan2.1-I2V-14B-480P",
+        "revision": "6b73f84e66371cdfe870c72acd6826e1d61cf279",
+        "license": "Apache-2.0",
+        "files": [
+          {
+            "path": "diffusion_pytorch_model-00001-of-00007.safetensors",
+            "bytes": 9847223624,
+            "sha256": "09c0170242cfe9598208724585196ca18f294928fe25971149e1d7b37b3b51d6"
+          },
+          {
+            "path": "diffusion_pytorch_model-00002-of-00007.safetensors",
+            "bytes": 9797021016,
+            "sha256": "9e9dd8069241f0cbfe8f269e784e915ddaa7f177272b9850ae88c494d418c181"
+          },
+          {
+            "path": "diffusion_pytorch_model-00003-of-00007.safetensors",
+            "bytes": 9797041744,
+            "sha256": "22af36eb620c381d57a2dd5d5e3a001bf90ba0ca32f2d5013d6ca45225b11d5f"
+          },
+          {
+            "path": "diffusion_pytorch_model-00004-of-00007.safetensors",
+            "bytes": 9692142864,
+            "sha256": "5c2be0421b8df4a8e7dd31cdbb6489567438ae14b812b57518e43c6f4e49a755"
+          },
+          {
+            "path": "diffusion_pytorch_model-00005-of-00007.safetensors",
+            "bytes": 9692142864,
+            "sha256": "0ba7f3ab69f414f23e5566e607b9385a8f67907302cbaaf86507b3a826a20dda"
+          },
+          {
+            "path": "diffusion_pytorch_model-00006-of-00007.safetensors",
+            "bytes": 9692142864,
+            "sha256": "d7287e9233cbf67a75fce8ef8be24232ec93d6336f148972465db00008d69e28"
+          },
+          {
+            "path": "diffusion_pytorch_model-00007-of-00007.safetensors",
+            "bytes": 7061933536,
+            "sha256": "d1bc30f07b162c34b90e4ee4a349f81b6e1a3a342187ea9ea153c9e4dbb07676"
+          },
+          {
+            "path": "models_clip_open-clip-xlm-roberta-large-vit-huge-14.pth",
+            "bytes": 4772359047,
+            "sha256": "628c9998b613391f193eb67ff68da9667d75f492911e4eb3decf23460a158c38"
+          },
+          {
+            "path": "models_t5_umt5-xxl-enc-bf16.pth",
+            "bytes": 11361920418,
+            "sha256": "7cace0da2b446bbbbc57d031ab6cf163a3d59b366da94e5afe36745b746fd81d"
+          },
+          {
+            "path": "Wan2.1_VAE.pth",
+            "bytes": 507609880,
+            "sha256": "38071ab59bd94681c686fa51d75a1968f64e470262043be31f7a094e442fd981"
+          },
+          {
+            "path": "google/umt5-xxl/special_tokens_map.json",
+            "bytes": 6623,
+            "sha256": "7b8a9f5040adb67b5805abdfd42c1f8d0f3d0e711f10726580eb3789cd0ad61d"
+          },
+          {
+            "path": "google/umt5-xxl/spiece.model",
+            "bytes": 4548313,
+            "sha256": "e3909a67b780650b35cf529ac782ad2b6b26e6d1f849d3fbb6a872905f452458"
+          },
+          {
+            "path": "google/umt5-xxl/tokenizer.json",
+            "bytes": 16837417,
+            "sha256": "6e197b4d3dbd71da14b4eb255f4fa91c9c1f2068b20a2de2472967ca3d22602b"
+          },
+          {
+            "path": "google/umt5-xxl/tokenizer_config.json",
+            "bytes": 61728,
+            "sha256": "ed9a3a8b0faa71a70a32847e0435fe036e6e112d4df4edb7bb48a921e344dc05"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "cards": [
+    {
+      "kind": "refImage",
+      "id": "example-color-key",
+      "name": "예제 — 컬러 키프레임",
+      "file": "cards/color-key.jpg",
+      "role": "키프레임 영상 — '컬러 키프레임'에 (첫 프레임)",
+      "tags": ["2D 애니메이션", "키프레임", "예제"]
+    },
+    {
+      "kind": "refImage",
+      "id": "example-line-key",
+      "name": "예제 — 선화 키프레임",
+      "file": "cards/line-key.png",
+      "role": "키프레임 영상 — '선화 키프레임'에 (마지막 프레임)",
+      "tags": ["2D 애니메이션", "키프레임", "예제"]
+    }
+  ]
+}
